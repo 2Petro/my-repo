@@ -1,0 +1,32 @@
+name: Repo Sync
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v3
+
+      - name: Install repo tool
+        run: |
+          sudo apt update
+          sudo apt install -y repo git curl
+          mkdir -p ~/bin
+          PATH="$HOME/bin:$PATH"
+
+      - name: Initialize repo
+        run: |
+          mkdir -p kernel_src
+          cd kernel_src
+          repo init -u https://github.com/xiaomi-sm8450-kernel/manifest.git -b zeus-s-oss
+
+      - name: Sync repo
+        run: |
+          cd kernel_src
+          repo sync
