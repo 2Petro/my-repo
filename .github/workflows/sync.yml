@@ -9,6 +9,7 @@ on:
 jobs:
   repo-sync:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v3
@@ -18,15 +19,23 @@ jobs:
           sudo apt update
           sudo apt install -y repo git curl
           mkdir -p ~/bin
-          PATH="$HOME/bin:$PATH"
+          echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+          source ~/.bashrc
 
       - name: Initialize repo
         run: |
           mkdir -p kernel_src
           cd kernel_src
-          repo init -u https://github.com/xiaomi-sm8450-kernel/manifest.git -b zeus-s-oss --depth=1
+          repo init -u https://github.com/xiaomi-sm8450-kernel/manifest.git \
+                    -b zeus-s-oss --depth=1
 
       - name: Sync repo
         run: |
           cd kernel_src
-          repo sync -c -j$(nproc) --no-clone-bundle --no-tags
+          repo sync -c -j"$(nproc)" --no-clone-bundle --no-tags
+
+      - name: Build kernel
+        run: |
+          cd kernel_src
+          chmod +x build.sh
+          ./build.sh zeus
