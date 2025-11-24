@@ -55,10 +55,12 @@ jobs:
           cd kernel_src
           find . -type d -name ".git" | xargs -r rm -rf || true
 
-      - name: Build kernel (headers + modules)
+      - name: Build kernel (headers + modules only)
         run: |
           cd kernel_src
           chmod +x build.sh
+          # skip external modules / vendor DLKMs
+          export SKIP_EXT_MODULES=1
           ./build.sh zeus
 
       - name: Package kernel headers
@@ -89,4 +91,3 @@ jobs:
             kernel_src/gki_modules_zeus.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
