@@ -43,7 +43,6 @@ jobs:
             --optimized-fetch \
             --force-sync \
             -j"$(nproc)" \
-            --depth=1
 
       - name: Remove unnecessary vendor / DLKM directories
         run: |
