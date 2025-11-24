@@ -1,4 +1,4 @@
-name: Repo Sync
+name: Minimal Kernel Sync for Out-of-Tree Modules
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       - master
 
 jobs:
-  repo-sync:
+  minimal-kernel:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,15 +27,44 @@ jobs:
           mkdir -p kernel_src
           cd kernel_src
           repo init -u https://github.com/xiaomi-sm8450-kernel/manifest.git \
-                    -b zeus-s-oss --depth=1
+                    -b zeus-s-oss \
+                    --depth=1 \
+                    --no-clone-bundle \
+                    --no-tags
 
-      - name: Sync repo
+      - name: Sync kernel + GKI
         run: |
           cd kernel_src
-          repo sync -c -j"$(nproc)" --no-clone-bundle --no-tags
+          repo sync \
+            --current-branch \
+            --no-clone-bundle \
+            --no-tags \
+            --prune \
+            --optimized-fetch \
+            --force-sync \
+            -j"$(nproc)" \
+            --depth=1
 
-      - name: Build kernel
+      - name: Remove unnecessary vendor / DLKM directories
+        run: |
+          cd kernel_src
+          rm -rf vendor/* firmware/* device/* prebuilts/* \
+                 kernel/vendor* kernel/dlkm* || true
+
+      - name: Remove all .git directories to minimize storage
+        run: |
+          cd kernel_src
+          find . -type d -name ".git" | xargs -r rm -rf || true
+          echo "Removed all .git directories"
+
+      - name: Build kernel (prepare headers)
         run: |
           cd kernel_src
           chmod +x build.sh
           ./build.sh zeus
+
+      - name: Show final repo size
+        run: |
+          cd kernel_src
+          echo "Final repo size after cleanup and build:"
+          du -sh ..
