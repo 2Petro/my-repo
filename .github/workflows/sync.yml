@@ -1,4 +1,4 @@
-name: Minimal Kernel Sync for Out-of-Tree Modules
+name: Minimal Kernel Build & Release
 
 on:
   workflow_dispatch:
@@ -7,17 +7,17 @@ on:
       - master
 
 jobs:
-  minimal-kernel:
+  build-and-release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout this repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Install repo tool
         run: |
           sudo apt update
-          sudo apt install -y repo git curl
+          sudo apt install -y repo git curl zip
           mkdir -p ~/bin
           echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
           source ~/.bashrc
@@ -42,7 +42,7 @@ jobs:
             --prune \
             --optimized-fetch \
             --force-sync \
-            -j"$(nproc)" \
+            -j"$(nproc)"
 
       - name: Remove unnecessary vendor / DLKM directories
         run: |
@@ -50,20 +50,43 @@ jobs:
           rm -rf vendor/* firmware/* device/* prebuilts/* \
                  kernel/vendor* kernel/dlkm* || true
 
-      - name: Remove all .git directories to minimize storage
+      - name: Remove all .git directories
         run: |
           cd kernel_src
           find . -type d -name ".git" | xargs -r rm -rf || true
-          echo "Removed all .git directories"
 
-      - name: Build kernel (prepare headers)
+      - name: Build kernel (headers + modules)
         run: |
           cd kernel_src
           chmod +x build.sh
           ./build.sh zeus
 
-      - name: Show final repo size
+      - name: Package kernel headers
         run: |
-          cd kernel_src
-          echo "Final repo size after cleanup and build:"
-          du -sh ..
+          cd kernel_src/out/msm-kernel-zeus/gki_kernel/common
+          zip -r ../../kernel_headers_zeus.zip headers
+
+      - name: Package kernel modules
+        run: |
+          cd kernel_src/out/msm-kernel-zeus/gki_kernel/common
+          find . -name "*.ko" > ko_list.txt
+          zip ../../gki_modules_zeus.zip -@ < ko_list.txt
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0
+          name: Zeus Kernel Release
+          body: "Compiled GKI kernel modules and headers for Zeus"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            kernel_src/kernel_headers_zeus.zip
+            kernel_src/gki_modules_zeus.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
